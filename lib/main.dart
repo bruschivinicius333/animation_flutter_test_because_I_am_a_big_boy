@@ -2,20 +2,68 @@ import 'package:flutter/material.dart';
 
 void main() => runApp(const LogoApp());
 
+class LogoWidget extends StatelessWidget {
+  const LogoWidget({super.key});
+
+  // Leave out the height and width so it fills the animating parent
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 10),
+      child: const FlutterLogo(),
+    );
+  }
+}
+
+class GrowTransition extends StatelessWidget {
+  const GrowTransition({
+    required this.child,
+    required this.animation,
+    super.key,
+  });
+
+  final Widget child;
+  final Animation<double> animation;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: AnimatedBuilder(
+        animation: animation,
+        builder: (context, child) {
+          return SizedBox(
+            height: animation.value,
+            width: animation.value,
+            child: child,
+          );
+        },
+        child: child,
+      ),
+    );
+  }
+}
+
 class AnimatedLogo extends AnimatedWidget {
   const AnimatedLogo({super.key, required Animation<double> animation})
     : super(listenable: animation);
+
+  // Make the tweens static because they don't change.
+  static final Tween<double> _opacityTween = Tween(begin: 0.1, end: 1);
+  static final Tween<double> _sizeTween = Tween(begin: 0, end: 300);
 
   @override
   Widget build(BuildContext context) {
     final animation = listenable as Animation<double>;
     return Center(
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 10),
-        height: animation.value,
-        width: animation.value,
-        child: const FlutterLogo(),
-      ),
+      child: Opacity(
+        opacity: _opacityTween.evaluate(animation),
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 10),
+          height: _sizeTween.evaluate(animation),
+          width: _sizeTween.evaluate(animation),
+          child: const FlutterLogo(),
+        ),
+      )
     );
   }
 }
@@ -38,20 +86,21 @@ class _LogoAppState extends State<LogoApp> with SingleTickerProviderStateMixin {
       duration: const Duration(seconds: 2),
       vsync: this,
     );
-    animation = Tween<double>(begin: 0, end: 300).animate(controller);
+    animation = CurvedAnimation(parent: controller, curve: Curves.easeIn)
+      ..addStatusListener((status) {
+        if (status == AnimationStatus.completed) {
+          controller.reverse();
+        } else if (status == AnimationStatus.dismissed) {
+          controller.forward();
+        }
+      })
+      ..addStatusListener((status) => debugPrint('$status'));
     controller.forward();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 10),
-        height: animation.value,
-        width: animation.value,
-        child: const FlutterLogo(),
-      ),
-    );
+    return GrowTransition(animation: animation, child: const LogoWidget());
   }
 
   @override
